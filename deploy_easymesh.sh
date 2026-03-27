@@ -128,7 +128,7 @@ LABEL maintainer="SURF Integration" \
       version="2.0.4-easymesh"
 
 # Install EasyMesh Python package
-RUN pip install --no-cache-dir easymesh
+RUN pip install --no-cache-dir --break-system-packages easymesh
 
 # Copy EasyMesh integration modules into container
 COPY easymesh_3d.py /app/surf_shyfem/preprocessing/core/meshing/easymesh_3d.py
@@ -147,15 +147,34 @@ print_ok "Created Dockerfile"
 # Step 3: Copy integration files
 print_header "Step 3: Copying Integration Files"
 
-# Note: These files should exist from the creation steps
-for file in easymesh_3d.py create_grid_3d.py; do
-    if [ -f "/tmp/$file" ]; then
-        cp "/tmp/$file" "${TEMP_DIR}/"
-        print_ok "Copied: $file"
-    else
-        print_warn "File not found (will be created): $file"
-    fi
-done
+# Copy integration files from current repo first, then fallback to /tmp
+if [ -f "./easymesh_3d.py" ]; then
+    cp "./easymesh_3d.py" "${TEMP_DIR}/easymesh_3d.py"
+    print_ok "Copied: easymesh_3d.py"
+elif [ -f "/tmp/easymesh_3d.py" ]; then
+    cp "/tmp/easymesh_3d.py" "${TEMP_DIR}/easymesh_3d.py"
+    print_ok "Copied: easymesh_3d.py (from /tmp)"
+else
+    print_error "Missing easymesh_3d.py"
+    exit 1
+fi
+
+if [ -f "./create_grid_3d.py" ]; then
+    cp "./create_grid_3d.py" "${TEMP_DIR}/create_grid_3d.py"
+    print_ok "Copied: create_grid_3d.py"
+elif [ -f "./create_grid_3d_modified.py" ]; then
+    cp "./create_grid_3d_modified.py" "${TEMP_DIR}/create_grid_3d.py"
+    print_ok "Copied: create_grid_3d_modified.py as create_grid_3d.py"
+elif [ -f "/tmp/create_grid_3d.py" ]; then
+    cp "/tmp/create_grid_3d.py" "${TEMP_DIR}/create_grid_3d.py"
+    print_ok "Copied: create_grid_3d.py (from /tmp)"
+elif [ -f "/tmp/create_grid_3d_modified.py" ]; then
+    cp "/tmp/create_grid_3d_modified.py" "${TEMP_DIR}/create_grid_3d.py"
+    print_ok "Copied: create_grid_3d_modified.py (from /tmp)"
+else
+    print_error "Missing create_grid_3d.py or create_grid_3d_modified.py"
+    exit 1
+fi
 
 # Step 4: Build new image (unless test-only)
 if [ "$TEST_ONLY" = true ]; then
